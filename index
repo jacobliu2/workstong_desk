@@ -216,7 +216,6 @@
     <div class="logo">유영준의 책상<small>The Desk · 업무를 잇다 TONG</small></div>
     <div class="user-box">
       <span id="whoami"></span>
-      <button class="btn btn-ghost" id="logout">로그아웃</button>
     </div>
   </header>
 
@@ -368,8 +367,8 @@
 "use strict";
 
 /* ========== 설정 ========== */
-// 여기에 직접 박아두어도 되고(아래 두 줄), 비워두면 첫 실행 시 화면에서 입력받습니다.
-let SUPABASE_URL = "";
+// 프로젝트 URL은 미리 박아둠. anon key만 첫 실행 때 1회 입력하면 됩니다.
+let SUPABASE_URL = "https://cnbconialaubnoydlzgv.supabase.co";
 let SUPABASE_ANON_KEY = "";
 
 const LS_URL="tong_sb_url", LS_KEY="tong_sb_key";
@@ -419,7 +418,13 @@ function boot(){
   // 세션 확인 (매직링크 복귀 포함)
   sb.auth.getSession().then(({data})=>{
     if(data.session){ onLogin(data.session.user); }
-    else { showAuth(); }
+    else {
+      // 로그인 화면 없이 익명 세션 자동 생성
+      sb.auth.signInAnonymously().then(({data,error})=>{
+        if(error){ toast("자동 접속 실패: "+error.message,true); showAuth(); return; }
+        if(data&&data.session) onLogin(data.session.user);
+      });
+    }
   });
   sb.auth.onAuthStateChange((_e,session)=>{
     if(session && !USER){ onLogin(session.user); }
@@ -427,14 +432,15 @@ function boot(){
 }
 
 function showSetup(){ $("gate").style.display="block"; $("setupGate").style.display="block";
-  $("authGate").style.display="none"; $("app").style.display="none"; }
+  $("authGate").style.display="none"; $("app").style.display="none";
+  if(SUPABASE_URL)$("sbUrl").value=SUPABASE_URL; }
 function showAuth(){ $("gate").style.display="block"; $("authGate").style.display="block";
   $("setupGate").style.display="none"; $("app").style.display="none"; }
 function showApp(){ $("gate").style.display="none"; $("app").style.display="block"; }
 
 function onLogin(user){
   USER=user;
-  $("whoami").textContent=user.email;
+  $("whoami").textContent=user.email || "내 책상";
   showApp();
   loadIdeas();
   loadPosts();
@@ -472,7 +478,7 @@ async function doSignup(){
 $("loginBtn").onclick=doLogin;
 $("signupBtn").onclick=doSignup;
 $("password").onkeydown=e=>{if(e.key==="Enter")doLogin();};
-$("logout").onclick=async()=>{await sb.auth.signOut();USER=null;location.reload();};
+$("logout") && ($("logout").onclick=async()=>{await sb.auth.signOut();USER=null;location.reload();});
 
 /* ========== 글감 CRUD ========== */
 async function loadIdeas(){
